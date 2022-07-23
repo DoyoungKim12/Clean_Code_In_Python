@@ -138,9 +138,9 @@ def main():
 
 <br>
 
- - contextlib 모듈은 컨텍스트 관리자를 구현하거나 더 간결한 코드를 작성하는 데 도움이 되는 많은 도우미 함수와 객체를 제공
+- contextlib 모듈은 컨텍스트 관리자를 구현하거나 더 간결한 코드를 작성하는 데 도움이 되는 많은 도우미 함수와 객체를 제공
   - 먼저 contextmanager 데코레이터를 보자
-    -    
+  - 함수에 contextlib.contextmanager 데코레이터를 적용하면 해당 함수의 코드를     
 
 
 
