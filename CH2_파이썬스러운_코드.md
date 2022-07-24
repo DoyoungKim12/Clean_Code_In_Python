@@ -313,7 +313,10 @@ Class User:
   def __init__(self, username):
     self.username = username
     self._email = None
-    
+
+# 책에서는 여기에서 들여쓰기가 안되어있어서 마치 아래 2개 함수가 클래스와는 무관한 함수인 것처럼 보임
+# 실제로 그게 맞는것인지 오타인지 잘 모르겠음
+
 @property
 def email(self):
   return self._email
