@@ -64,6 +64,8 @@
     - 가장 일반적인 방법은 finally 블록에 정리 코드를 넣는 것
     - 그러나 같은 기능을 **매우 우아하고 파이썬스러운** 방법으로 구현할 수 있음
 
+<br>
+
 ```python
 # 파이썬스럽지 못한 코드
 fd = open(filename)
@@ -101,6 +103,8 @@ with open(filename) as fd:
   - 첫번째 방법은 서비스 중지 > 백업 > 예외 및 특이사항 처리 > 서비스 재시작 으로 이루어진 거대한 단일 함수를 만드는 것
     - 진짜 이렇게 구현하는 경우가 있기 때문에, 바로 해결법을 제시하지 않고 좀 더 자세히 살펴봄
 
+<br>
+
 ```python
 def stop_database():
   run("systemctl stop postgresql.service")
@@ -120,6 +124,10 @@ def db_backup():
   run("pg_dump database")
   
 # main 함수에서는 유지보수 작업과 상관없이 백업 실행, 백업에 오류가 있어도 여전히 __exit__ 호출
+# __exit__에서는 블록에서 발생한 예외를 파라미터로 받음 (블록에 예외가 없으면 모두 None인 값들)
+# __exit__의 반환 값을 잘 생각해야 함. 만약 True를 반환하면 잠재적으로 발생한 예외를 호출자에게 전파하지 않고 멈춤을 의미함
+# 위 예시에서는 따로 return을 쓰지 않았는데, 그럼 True를 반환한다는 뜻?
+
 def main():
 # 블록 내부에서 컨텍스트 관리자의 결과를 사용하지 않음
 # 적어도 이런 경우에는 __enter__의 반환 값은 쓸모가 없음 (as로 반환되는 무언가를 블록 내부에서 써야 한다는 말인가?)
@@ -140,7 +148,104 @@ def main():
 
 - contextlib 모듈은 컨텍스트 관리자를 구현하거나 더 간결한 코드를 작성하는 데 도움이 되는 많은 도우미 함수와 객체를 제공
   - 먼저 contextmanager 데코레이터를 보자
-  - 함수에 contextlib.contextmanager 데코레이터를 적용하면 해당 함수의 코드를     
+    - 함수에 contextlib.contextmanager 데코레이터를 적용하면 해당 함수의 코드를 컨텍스트 관리자로 변환함
+    - 함수는 **제러레이터**라는 특수한 함수의 형태여야 함 (코드의 문장을 \_\_enter__와 \_\_exit__ 매직메서드로 분리)
+    - 지금은 데코레이터와 제너레이터에 익숙하지 않아도 아래 예제는 이해가능함 (관련하여 자세한 내용은 7장에서 다룸)
+
+<br>
+
+```python
+import contextlib
+
+@contextlib.contextmanager
+def db_handler():
+  stop_database()
+  yeild
+  start_database()
+  
+with db_handler():
+  db_backup()
+```
+
+<br>
+
+- 먼저 제너레이터 함수를 정의하고 @contextlib.contextmanager 데코레이터를 적용
+  - yeild문을 사용했으므로 제너레이터 함수가 됨
+  - 중요한 것은, 데코레이터를 사용하면 yeild문 앞의 모든 것은 \_\_enter__ 메서드의 일부로 취급된다는 것
+  - yeild문 다음에 오는 모든 것들은 \_\_exit__ 로직이 됨
+
+<br>
+
+- 이렇게 컨텍스트 매니저를 작성하면 기존 함수를 리팩토링하기 쉬운 장점이 있음
+  - 많은 상태를 관리할 필요가 없고, 다른 클래스와 독립된 컨텍스트 관리자 함수를 만드는 경우에는 이렇게 하는 것이 좋음
+  - 컨텍스트 관리자를 구현할 수 있는 더 많은 방법이 있으며, 표준 라이브러리인 contextlib 패키지에 있음
+
+<br>
+
+- 또 다른 도우미 클래스는 contextlib.ContextDecorator이다.
+  - 컨텍스트 관리자 안에서 실행될 함수에 데코레이터를 적용하기 위한 로직을 제공하는 믹스인 클래스
+    - 믹스인 클래스는 다른 클래스에서 필요한 기능만 섞어서 사용할 수 있도록 메서드만을 제공하는 유틸리티 형태의 클래스를 말함
+  - 컨텍스트 관리자 자체의 로직은 앞서 언급한 매직메서드를 구현하여 제공해야 함
+
+<br>
+
+```python 
+class dbhandler_decorator(contextlib.ContextDecorator):
+  def __enter__(self):
+    stop_database()
+  
+  def __exit__(self, ext_type, ex_value, ex_traceback):
+    start_database()
+
+@dbhandler_decorator()
+def offline_backup():
+  run("pg_dump database")
+```
+
+<br>
+
+- 이전 예제와 다른 점은 with문이 없다는 것
+  - 그저 함수를 호출하기만 하면 offline_backup 함수가 컨텍스트 관리자 안에서 자동으로 실행됨
+  - 원본 함수를 래핑하는 데코레이터가 하는 일
+  - 이 접근법의 유일한 단점은 완전히 독립적이라는 것
+    - 이것은 좋은 특성이지만, 컨텍스트 관리자 내부에서 사용하고자 하는 객체를 얻을 수는 없음을 의미
+    - \_\_enter__ 메서드가 반환한 객체를 사용해야 하는 경우는 이전의 방식을 선택해야 함
+  - 데코레이터로서의 장점은 로직을 한번만 정의하면 동일한 로직이 필요한 함수에 원하는 만큼 재사용할 수 있다는 것    
+
+<br>
+
+- 마지막으로 contextlib의 기능 하나를 살펴보자.
+  - contextlib.suppress는 컨텍스트 관리자에서 사용하는 util 패키지로 제공한 예외가 발생한 경우에는 실패하지 않도록 함
+  - try/except 블록에서 코드를 실행하고 예외를 전달하는 것과 비슷하지만, 차이점은 로직에서 자체적으로 처리하고 있는 예외임을 명시한다는 것
+
+<br>
+
+```python
+import contextlib
+
+# DataConversionException은 입력데이터가 이미 기대한 것과 같은 포맷이어서 변환할 필요가 없으므로, 무시해도 안전하다는 것을 뜻함
+with contextlib.suppress(DataConversionException):
+  parse_data(input_json_or_dict)
+```
+
+<br><br>
+
+##  프로퍼티, 속성과 객체 메서드의 다른 타입들
+- 파이썬 객체의 모든 프로퍼티와 함수는 public이다. 
+  - 다른 언어들은 public, private, protected의 프로퍼티를 가짐
+  - 즉, 호출자가 객체의 속성을 호출하지 못하도록 할 방법이 없음
+  - 엄격한 강제사항은 없지만, 몇가지 규칙이 존재함
+     - 밑줄(_)로 시작하는 속성은 해당 객체에 대해 private을 의미, **외부에서 호출하지 않기를 기대**하는 것
+     - 다시 말하지만, 이걸 금지하는 것은 절대 아님
+     - 파이썬에서의 밑줄이 어떤 특성을 갖는지 그 관습을 이해하고 속성의 범위를 살펴보는 것이 의미가 있을 것
+
+<br>
+
+### 파이썬에서의 밑줄
+- 
+
+
+
 
 
 
