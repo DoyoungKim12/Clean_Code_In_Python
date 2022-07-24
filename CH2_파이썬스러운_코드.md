@@ -242,15 +242,117 @@ with contextlib.suppress(DataConversionException):
 <br>
 
 ### 파이썬에서의 밑줄
-- 
+- 파이썬에서 밑줄을 사용하는 몇가지 규칙과 세부 사항
 
+<br>
 
+```python
+class Connector:
+  def __init__(self, source):
+    self.source = source
+    self._timeout = 60
+    
+conn = Connector("postgresql://localhost")
+conn.source
+# 'postgresql://localhost' 라는 string을 반환
+conn._timeout
+# 60 을 반환
+conn.__dict__
+# {'source':'postgresql://localhost', '_timeout':60} 를 반환
+```
 
+<br>
 
+- Connector 객체는 source로 생성되며, source와 \_timeout이라는 2개 속성을 가짐
+  - source는 public, \_timeout은 private
+  - 그러나 실제로는 두 속성에 모두 접근이 가능함
+    - \_timeout은 connector 자체에서만 사용되고, 호출자는 해당 속성에 접근하지 않아야 함
+    - 내부에서만 사용되고 바깥으로 호출되지 않아서 동일한 인터페이스를 유지, 언제든 필요할 때 안전하게 리팩토링 가능해야 함
+    - 객체의 인터페이스가 유지되어 파급효과를 걱정하지 않아도 되므로 유지보수가 쉽고 견고한 코드 작성이 가능
+    - 동일한 원칙이 메서드에도 적용됨
 
+<br>
 
+- 객체는 외부 호출 객체와 관련된 속성과 메서드만을 노출해야 한다. 
+- 객체의 인터페이스로 공개하는 용도가 아니라면 모든 멤버에는 접두사로 **하나의 밑줄**을 사용하는 것이 좋다.
 
+<br>
 
+- 이는 객체의 인터페이스를 명확히 구분하기 위한 파이썬스러운 방식
+  - 그러나 일부 속성과 메서드를 실제로 private으로 만들 수 있다고 오해하는 경우가 있고, 이는 잘못된 생각임 
+  - 아래 예시에서는 timeout 속성을 이중 밑줄로 정의했다고 가정함
+    - 일부 개발자는 이를 통해 일부 속성을 숨길 수 있으므로, timeout이 이제 private이며 다른 객체가 수정할 수 없다고 생각함
+    - 그런데 \_\_timeout에 접근하려고 할 때 발생하는 예외는 AttributeError임
+    - 이는 속성 자체가 존재하지 않는다는 것으로, 뭔가 기대한 바와 다른 일이 벌어졌음을 뜻함
+  - 밑줄 2개를 사용하면 실제로 파이썬은 의도한 바와는 다른 이름을 만들고 이를 **맹글링**이라고 함
+    - **\_<클래스명>\_\_<속성명>**으로, 의도했던 \_\_<속성명>과는 다른 이름이 만들어짐
+    - 이렇기 때문에, \_\_<속성명>의 속성은 존재하지 않는다는 AttributeError가 발생한 것
+    - **이중 밑줄은 여러 번 확장되는 클래스의 메서드를 이름 충돌 없이 오버라이드** 하기 위해 만들어진 것
+  - 속성을 private으로 정의하려는 경우, 하나의 밑줄을 사용하는 파이썬스러운 관습을 지키도록 하자.
+    - 의도한 것이 아니라면, 이중 밑줄을 사용하지 말자.
+
+<br>
+
+### 프로퍼티
+- 객체의 상태나 각 속성의 값을 기반으로 계산 등을 하려 한다면 프로퍼티를 사용하는 것이 좋음
+- 프로퍼티는 객체의 속성에 대한 접근을 제어할 때 사용
+  - 이렇게 하는 것도 파이썬스러운 코드임 (자바 등의 다른 언어에서는 접근 메서드를 만들지만, 파이썬은 프로퍼티 사용)
+- 사용자가 등록한 정보에 잘못된 정보가 입력되지 않게 보호하는 예시를 보자.
+
+<br>
+
+```python
+import re
+
+EMAIL_FORMAT = re.compile(r"[^@]+@{[^@]+[^@]+")
+
+def is_valid_email(potentially_valid_email: str):
+  return re.match(EMAIL_FORMAT, potentially_valid_email) is not None
+  
+Class User:
+  def __init__(self, username):
+    self.username = username
+    self._email = None
+    
+@property
+def email(self):
+  return self._email
+  
+@email.setter
+def email(self, new_email):
+  if not is_valid_email(new_email):
+    raise ValueError(f"유효한 이메일이 아니므로 {new_email} 값을 사용할 수 없음")
+  self._email = new_email
+
+```
+
+<br>
+
+- 이메일 함수에 프로퍼티를 사용하여 몇가지 이점을 얻을 수 있음
+  - 첫번째 @property 메서드는 private 속성인 email 값을 반환함
+  - 두번째 메서드는 앞에서 정의한 프로퍼티에 @email.setter를 추가함
+    - 이 메서드는 \<User>.email = \<new_email>이 실행될 때 호출되는 코드
+    - 설정하려는 값이 실제 이메일 주소가 아닌 경우, 명확하게 유효성 검사를 시행, 문제가 없으면 새 값으로 속성 업데이트 
+    - get_, set_ 접두어를 사용하여 사용자 메서드를 만드는 것보다 훨씬 간단하고, 이메일을 입력으로 받기 때문에 기대하는 값의 형태가 명확함
+
+<br>
+
+- 객체의 모든 속성에 대해 get_, set_ 메서드를 작성할 필요가 없다. 
+- 대부분의 경우 일반 속성을 사용하는 것으로 충분하며, 속성 값을 가져오거나 수정할 때 특별한 로직이 필요한 경우에만 프로퍼티를 사용하자.
+
+<br>
+
+- 프로퍼티는 **명령-쿼리 분리 원칙(command and query separation - CC08)**을 따르기 위한 좋은 방법
+  - 명령-쿼리 분리 원칙은 객체의 메서드가 상태 변경, 값 반환 중 하나만 수행해야지 둘 다 동시에 하면 안된다는 것
+  - 메서드 이름에 따라 실제 코드가 무엇을 하는지 혼돈스럽고 이해하기 어려운 경우가 있음
+    - 예를 들어, set_email이라는 메서드를 if self.set_email("a@j.com")처럼 사용했다면?
+    - a@j.com로 값을 설정하려는 것일까, 아니면 해당 값으로 설정되었는지 확인하려는 것일까?
+    - 혹은 둘다? 
+  - 프로퍼티를 사용하면 이러한 종류의 혼동을 피할 수 있음
+    - @property 데코레이터는 무언가에 응답하기 위한 쿼리
+    - @\<property_name>.setter는 무언가를 하기 위한 커맨드
+  - 한 메서드에서 한 가지 이상의 일을 하지 말라.
+    - 작업을 처리한 다음 상태를 확인하려면 메서드를 분리해야 한다.  
 
 
 
