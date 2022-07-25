@@ -345,7 +345,7 @@ def email(self, new_email):
 
 <br>
 
-- 프로퍼티는 **명령-쿼리 분리 원칙(command and query separation - CC08)**을 따르기 위한 좋은 방법
+- 프로퍼티는 **명령-쿼리 분리 원칙(command and query separation - CC08)** 을 따르기 위한 좋은 방법
   - 명령-쿼리 분리 원칙은 객체의 메서드가 상태 변경, 값 반환 중 하나만 수행해야지 둘 다 동시에 하면 안된다는 것
   - 메서드 이름에 따라 실제 코드가 무엇을 하는지 혼돈스럽고 이해하기 어려운 경우가 있음
     - 예를 들어, set_email이라는 메서드를 if self.set_email("a@j.com")처럼 사용했다면?
@@ -355,7 +355,171 @@ def email(self, new_email):
     - @property 데코레이터는 무언가에 응답하기 위한 쿼리
     - @\<property_name>.setter는 무언가를 하기 위한 커맨드
   - 한 메서드에서 한 가지 이상의 일을 하지 말라.
-    - 작업을 처리한 다음 상태를 확인하려면 메서드를 분리해야 한다.  
+    - 작업을 처리한 다음 상태를 확인하려면 메서드를 분리해야 한다. 
+
+<br><br>
+
+## 이터러블 객체
+- 파이썬에는 리스트, 튜플과 같은 반복가능한 객체가 있음
+- 그러나 이러한 내장 반복형 객체만 for 루프에서 사용가능한 것은 아님
+  - 반복을 위해 정의한 로직을 사용해 자체 이터러블을 만들 수도 있음
+  - 엄밀히 말하면 이터러블은 \_\_iter__ 매직메서드를 구현한 객체, 이터레이터는 \_\_next__ 매직메서드를 구현한 객체 (자세한 내용은 7장)
+  - 파이썬의 반복은 이터러블 프로토콜이라는 자체 프로토콜을 사용해 동작함
+    - 객체를 반복할 수 있는지 확인하기 위해 파이썬은 다음 2가지를 차례로 검사함
+    - 객체가 \_\_next__나 \_\_iter__ 메서드 중 하나를 포함하는지 여부
+    - 객체가 시퀀스이고 \_\_len__과 \_\_getitem__을 모두 가졌는지 여부 
+
+<br>
+
+### 이터러블 객체 만들기
+- 객체를 반복하려고 하면 파이썬은 해당 객체의 iter() 함수를 호출함
+  - 이 함수가 처음으로 하는 일은 해당 객체에 \_\_iter__ 메서드가 있는지를 확인하는 것
+  - 만약 있으면 해당 메서드를 실행
+  - 아래 예시는 일정 기간의 날짜를 하루 간격으로 반복하는 객체의 코드
+
+<br>
+
+```python
+from datetime import timedelta
+
+class DateRangeIterable:
+  """자체 이터레이터 메서드를 가지고 있는 이터러블"""
+  
+  def __init__(self, start_date, end_date):
+    self.start_date = start_date
+    self.end_date = end_date
+    self._present_day = stard_date
+    
+  def __iter__(self):
+    return self
+    
+  def __next__(self):
+    if self._present_day >= self.end_date:
+      raise StopIteration
+    today = self._present_day
+    self._present_day += timedelta(days=1)
+    return today
+```
+
+<br>
+
+- 이 객체는 한 쌍의 날짜를 통해 생성되며, 다음과 같이 해당 기간의 날짜를 반복하면서 하루 간격으로 날짜를 표시함
+  - for 루프는 만들어진 객체를 사용해 새로운 반복을 시작
+  - iter() 함수를 호출, 이 함수는 \_\_iter__ 매직메서드 호출
+  - \_\_iter__ 메서드는 self를 반환하고 있어, 객체 자신이 곧 이터러블임을 나타내고, 따라서 루프의 각 단계마다 자신의 next() 함수를 호출
+  - next() 함수는 다시 \_\_next__메서드에게 위임, 해당 메서드는 요소를 어떻게 생산하고 하나씩 반환할지 결정
+  - 더 이상 생산할 것이 없을 경우 StopIteration 예외를 발생시켜 알려줘야 함
+  - 즉, for 루프가 작동하는 원리는 StopIteration 예외가 발생살 때까지 next()를 호출하는 것과 같음
+
+<br>
+
+```python
+r = DataRangeIterable(date(2019,1,1), date(2019,1,5))
+next(r)
+# datetime.date(2019,1,1)을 반환
+next(r)
+# datetime.date(2019,1,2)을 반환
+next(r)
+# datetime.date(2019,1,3)을 반환
+next(r)
+# datetime.date(2019,1,4)을 반환
+next(r)
+# StopIteration 예외 발생
+```
+
+<br>
+
+- 이 예제는 잘 동작하지만 작은 문제가 하나 있음
+  - 일단 한번 실행하면 끝의 날짜에 도달한 상태가 되므로, 이후에 호출하면 계속 StopIteration 예외가 발생
+  - 즉, 두번째 for 루프에서는 작동하지 않음
+
+<br>
+
+- 이 문제가 발생하는 이유는 반복 프로토콜이 작동하는 방식 때문임
+  - 이터러블 객체는 이터레이터를 생성하고, 이를 사용해 반복을 시행함
+  - 위의 예제에서 \_\_iter__는 self를 반환했지만, 호출될 때마다 새로운 이터레이터를 만들 수도 있음
+    - 매번 새로운 DataRangeIterable 인스턴스를 만들거나
+    - \_\_iter__에서 제너레이터(이터레이터 객체)를 사용
+
+<br>
+
+```python
+class DataRangeContainerIterable:
+  def __init__(self, start_date, end_date):
+    self.start_date = start_date
+    self.end_date = end_date
+    
+  def __iter__(self):
+    current_day = self.start_date
+    while currunt_day < self.end_date:
+      yeild current_day
+      current_day += timedelta(days=1)
+```
+
+<br>
+
+- 달라진 점은 각각의 for 루프는 \_\_iter__를 호출하고, \_\_iter__는 다시 제너레이터를 생성한다는 점
+- 이러한 형태의 객체를 **컨테이너 이터러블** 이라고 함
+  - 일반적으로 제너레이터를 사용할 때에는 컨테이너 이터러블을 사용하는 것이 좋음 
+
+<br>
+
+### 시퀀스 만들기
+- 객체에 \_\_iter__() 메서드를 정의하지 않았지만 반복하기를 원하는 경우
+  - iter() 함수는 객체에 \_\_iter__가 정의되어있지 않으면 \_\_getitem__을 찾고, 없으면 TypeError를 발생시킴
+  - 시퀀스는 \_\_len__과 \_\_getitem__을 구현하고, 첫번째 인덱스 0부터 포함된 모든 요소를 한 번에 하나씩 차례로 가져올 수 있어야 함
+  - 이번 섹션의 예제는 메모리를 적게 사용한다는 장점이 있음
+    - 한 번에 하나의 날짜만 보관하고, 한 번에 하나씩 날짜를 생성하는 법을 알고 있음
+    - 그러나 n번째 요소를 얻고 싶다면 도달할 때까지 n번 반복한다는 단점 발생
+    - 이는 컴퓨터 과학에서 발생하는 전형적인 메모리와 CPU 사이의 트레이드오프
+    - 이터러블을 사용하면 메모리는 적게쓰지만 n번째 요소를 얻기 위한 시간복잡도는 O(n)
+    - 시퀀스를 사용하면 더 많은 메모리를 사용하지만(모든 것을 한 번에 보관하므로) 인덱싱의 시간복잡도는 O(1)
+
+<br>
+
+```python
+class DateRangeSequence:
+  def __init__(self, start_date, end_date):
+    self.start_date = start_date
+    self.end_date = end_date
+    self._range = self._create_range()
+    
+  def _create_range(self):
+    days=[]
+    currunt_day = self.start_date
+    while current_day < self.end_date:
+      days.append(current_day)
+      current_day += timedelta(days=1)
+    return days
+    
+  def __getitem__(self, day_no):
+    return self._range[day_no]
+    
+  def __len__(self):
+    return len(self._range)
+```
+
+<br>
+
+- DateRangeSequence 객체가 모든 작업을 래핑된 객체인 리스트에 위임하는 것을 확인
+  - 음수 인덱스 등이 잘 동작함
+  - 호환성과 일관성을 유지하는 가장 좋은 방법 
+
+<br>
+
+- 두 가지 구현 중 어느 것을 사용할지 결정할 때에는 메모리와 CPU 사이의 트레이드오프를 계산해보자.
+- 일반적으로 이터레이션이 더 좋은 선택이고, 제너레이터는 더 바람직하지만 모든 경우의 요건을 염두에 두어야 한다. 
+
+<br>
+
+
+
+
+
+
+
+
+
 
 
 
