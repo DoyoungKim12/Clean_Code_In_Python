@@ -512,6 +512,51 @@ class DateRangeSequence:
 
 <br>
 
+## 컨테이너 객체
+- 컨테이너는 \_\_contains__메서드를 구현한 객체로, 해당 메서드는 일반적으로 Boolean 값을 반환
+  - 파이썬에서 in 키워드가 발견될 때 호출
+  - 예를 들면 아래의 첫번째 코드를 두번째 코드와 같이 해석 
+    - element in container 
+    - container.\_\_contains__(element)
+  - 이 메서드를 잘 사용하면 코드의 가독성이 정말 높아짐 (파이썬스러운 코드다!)
+
+<br>
+
+- 2차원 게임 지도에서 특정 위치에 표시를 해야하는 문제
+  - 아래와 같은 함수를 생각해볼 수 있음
+  - 첫번째 if문이 상당히 난해해보임
+    - 의도를 이해하기 어렵고, 직관적이지 않으며, 무엇보다 매번 경계선을 검사하기 위해 if문을 중복하여 호출
+  - 지도에서 자체적으로 grid라 부르는 영역을 판단한다면 어떨까? 그리고 그 일을 더 작은 객체에 위임한다면?
+    - 이렇게 하면 지도에게 특정 좌표가 포함되었는지만 물어보면 됨
+
+<br>
+
+```python
+def mark_coordinate(grid, coord):
+  if 0 <= coord.x < grid.width and 0 <= coord.y < grid.height:
+    grid[coord] = MARKED
+```
+
+<br>
+
+```python
+class Boundaries:
+  def __init__(self, width, height):
+    self.width = width
+    self.height = height
+    
+  def __contains__(self, coord):
+    x,y = coord
+    return 
+
+```
+
+
+
+
+
+
+
 
 
 
