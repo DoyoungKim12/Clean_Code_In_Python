@@ -547,14 +547,114 @@ class Boundaries:
     
   def __contains__(self, coord):
     x,y = coord
-    return 
+    return 0 <= x < self.width and 0 <= y < self.height
+    
+class Grid:
+  def __init__(self, width, height):
+    self.width = width
+    self.height = height
+    self.limits = Boundaries(width, height)
+    
+  def __contains__(self, coord):
+    return coord in self.limits
 
 ```
 
+<br>
 
+- 이 코드만으로 훨씬 효과적인 구현이 됨
+  - 구성이 간단하고, 위임을 통해 문제를 해결함
+  - 두 객체 모두 최소한의 논리를 사용, 메서드는 짧고 응집력이 있음
+  - coord in self.limits는 의도를 직관적으로 표현하여 더 이상의 설명이 필요없음
+ 
+<br><br>
 
+## 객체의 동적인 속성
+- \_\_getattr__ 매직메서드를 사용해 객체에서 속성을 얻는 방법을 제어할 수 있음
+  - \<myobject>.\<myattribute>를 호출하면 파이썬은 객체의 사전에서 \<myattribute>를 찾아서 \_\_getattribute__를 호출함
+  - 객체에 찾고 있는 속성이 없는 경우, 속성의 이름을 파라미터로 전달하여 \_\_getattr__라는 추가 메서드가 호출됨
+    - 해당 값을 사용하여 반환 값을 제어하거나 새로운 속성을 만들 수 있음
+  - 아래의 예시로 \_\_getattr__ 메서드를 설명
 
+<br>
 
+```python
+class DynamicAttributes:
+  def __init__(self, attribute):
+    self.attribute = attribute
+  
+  def __getattr__(self, attr):
+    if attr.startswith("fallback_"):
+      name = attr.replace("fallback_", "")
+      return f"[fallback resolved] {name}"
+    raise AttributeError(f"{self.__class__.__name__}에는 {attr} 속성이 없음.")
+    
+dyn = DynamicAttributes("value")
+dyn.attributes
+# 'value' 반환
+dyn.fallback_test
+# '[fallback resolved] test' 반환
+dyn.__dict__['fallback_new'] = 'new_value'
+dyn.fallback_new
+# 'new value' 반환
+getattr(dyn, 'something', 'default')
+# 'default' 반환
+
+```
+
+<br>
+
+- 첫번째 호출은 객체에 있는 속성을 요청하고, 그 결과 값을 반환
+- 두번째 호출은 객체에 없는 fallback_test라는 메서드를 호출하기 때문에 \_\_getattr__이 호출되어 값을 반환
+- 세번째 예제에서 fallback_new라는 새 속성이 생성된 점이 흥미로움
+  - 실제로 이 호출은 dyn.fallback_new = 'new_value'를 실행한 것과 동일함
+- 마지막 예제에서는 값을 검색할 수 없는 경우 AttributeError가 발생한다는 점에 유의해야 함
+  - 예외 메세지를 포함하여 일관성을 유지할 뿐만 아니라, 내장 getattr() 함수에서도 필요한 부분
+  - 해당 예외가 발생하면 기본 값을 반환
+  - \_\_getattr__와 같은 동적인 메서드를 구현할 때에는 AttributeError를 발생시켜야 한다는 것에 주의하자.
+
+<br><br>
+
+## 호출형 객체
+- 함수처럼 동작하는 객체를 정의하면 매우 편리함
+  - 가장 흔한 사례는 데코레이터이지만, 그것만 존재하는 것은 아님
+  - 매직메서드 \_\_call__을 사용하면 객체를 일반 함수처럼 호출할 수 있음
+  - 이렇게 사용할 때의 이점은 객체에는 상태가 있기 때문에 함수 호출 사이에 정보를 저장할 수 있다는 점
+  - 파이썬은 object(\*args, \*\*kwargs)와 같은 구문을 object.\_\_call__(\*args, \*\*kwargs)로 변환함
+  - 해당 메서드는 객체를 파라미터가 있는 함수처럼 사용하거나 정보를 기억하는 함수처럼 사용할 때 유용함
+  - 아래 예제에서는 입력된 파라미터와 동일한 값으로 몇번이나 호출되었는지를 반환하는 객체를 만들 때 해당 메서드를 사용함
+
+<br>
+
+```python
+from collections import defaultdict
+
+class CallCount:
+  def __init__(self):
+    self._counts = defaultdict(int)
+    
+  def __call__(self, argument):
+    sefl._counts[argument] += 1
+    return self,._counts[argument]
+
+cc = CallCount()
+cc(1)
+# 1
+cc(2)
+# 1
+cc(1)
+# 2
+cc(1)
+# 3
+cc('something')
+# 1
+```
+
+<br><br>
+
+## 매직메서드 요약
+- 이전 섹션에서 설명한 개념을 아래의 컨닝페이퍼 형태로 요약할 수 있음
+- 파이썬에서의 실행은 매직메서드를 내포하고, 다음의 개념을 가짐
 
 
 
