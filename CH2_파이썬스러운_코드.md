@@ -658,15 +658,64 @@ cc('something')
 
 |문장|매직 메서드|파이썬 컨셉|
 |-----|---|---|
+|obj\[key], obj\[i:j], obj\[i:j:k]|\_\_getitem__(key)|첨자형 객체|
+|with obj: ...|\_\_enter__, \_\_exit__|컨텍스트 관리자|
+|for i in obj: ...|\_\_iter__, \_\_next_, \_\_len__, \_\_getitem__|이터러블 객체, 시퀀스|
+|obj.\<attribute>|\_\_getattr__|동적 속성 조회|
+|obj(\*args, \*\*kwargs)|\_\_call__(\*args, \*\*kwargs)|호출형 객체|
 
 
+<br><br>
 
+## 파이썬에서 유의할 점
+- 방어코드를 작성하지 않으면 오랜 시간 디버깅으로 고생할 수 있는 일반적인 이슈를 살펴볼 것
+- 여기서 논의되는 내용들은 대부분 예방 가능하고, 감히 안티패턴을 정당화하는 시나리오는 거의 없다고 볼 수 있음
+  - 따라서 작업 중 이러한 코드를 발견하면 제안된 방식으로 리팩토링 필요 (무언가 수정이 필요하다는 분명한 신호)
 
+<br>
 
+### 변경가능한 파라미터의 기본 값
+- 변경 가능한 객체를 함수의 기본 인자로 사용해서는 안됨
+- 아래의 함수 예시를 보자
 
+<br>
 
+```python
+def wrong_user_display(user_metadata: dict={"name":"John", "age":"30"}):
+  name = user_metadata.pop("name")
+  age = user_metadata.pop("age")
+  return f"{name} ({age})"
+  
+wrong_user_display()
+# 'John (30)'을 반환
+wrong_user_display("name":"Jane", "age":"25"})
+# 'Jane (25)'을 반환
+wrong_user_display()
+# KeyError: 'name'
+```
 
+<br>
 
+- 여기에는 사실 2개의 문제가 있음
+  - 변경 가능한 인자를 사용한 것
+  - 함수의 본문에서 가변 객체를 사용한 것 
+
+<br>
+
+- 이 함수는 인자를 사용하지 않고 처음 호출할 때만 동작하고, 이후에는 명시적으로 user_metadata를 전달하지 않으면 KeyError 발생
+  - 기본 값을 사용해 함수를 호출하면, 기본 데이터로 사용될 딕셔너리를 한 번만 생성하고, user_metadata는 이를 바라봄
+  - 해당 값은 프로그램이 실행되는 동안 계속 메모리에 남아있게 되는데, 함수의 본체에서 객체를 수정하고 있음
+  - 이 상태에서 함수의 파라미터에 새로운 값을 전달하면 조금 전에 사용한 기본 인자 대신 새로운 값을 사용
+  - 이후 다시 파라미터를 사용하지 않고 기본 값을 호출하면 실패함 (첫번째 호출 시 key를 지워버렸기 때문)
+  - 수정방법은 간단함 (기본 초기 값으로 None을 사용, 함수 본문에서 기본 값을 할당)
+
+<br>
+
+### 내장(built-in) 타입 확장
+- 리스트, 문자열, 딕셔너리와 같은 내장 타입을 확장하는 올바른 방법은 collection 모듈을 사용하는 것
+- dict, list에서 직접 확장하지 말고, 대신 Collection.UserDict, Collection.UserList를 사용해야 함 (String도 마찬가지)
+
+<br><br>
 
 
 
