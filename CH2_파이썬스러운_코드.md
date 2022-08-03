@@ -160,7 +160,7 @@ import contextlib
 @contextlib.contextmanager
 def db_handler():
   stop_database()
-  yeild
+  yield
   start_database()
   
 with db_handler():
@@ -170,9 +170,9 @@ with db_handler():
 <br>
 
 - 먼저 제너레이터 함수를 정의하고 @contextlib.contextmanager 데코레이터를 적용
-  - yeild문을 사용했으므로 제너레이터 함수가 됨
-  - 중요한 것은, 데코레이터를 사용하면 yeild문 앞의 모든 것은 \_\_enter__ 메서드의 일부로 취급된다는 것
-  - yeild문 다음에 오는 모든 것들은 \_\_exit__ 로직이 됨
+  - yield문을 사용했으므로 제너레이터 함수가 됨
+  - 중요한 것은, 데코레이터를 사용하면 yield문 앞의 모든 것은 \_\_enter__ 메서드의 일부로 취급된다는 것
+  - yield문 다음에 오는 모든 것들은 \_\_exit__ 로직이 됨
 
 <br>
 
