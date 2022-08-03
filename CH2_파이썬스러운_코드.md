@@ -409,7 +409,7 @@ class DateRangeIterable:
   - \_\_iter__ 메서드는 self를 반환하고 있어, 객체 자신이 곧 이터러블임을 나타내고, 따라서 루프의 각 단계마다 자신의 next() 함수를 호출
   - next() 함수는 다시 \_\_next__메서드에게 위임, 해당 메서드는 요소를 어떻게 생산하고 하나씩 반환할지 결정
   - 더 이상 생산할 것이 없을 경우 StopIteration 예외를 발생시켜 알려줘야 함
-  - 즉, for 루프가 작동하는 원리는 StopIteration 예외가 발생살 때까지 next()를 호출하는 것과 같음
+  - 즉, for 루프가 작동하는 원리는 StopIteration 예외가 발생 때까지 next()를 호출하는 것과 같음
 
 <br>
 
